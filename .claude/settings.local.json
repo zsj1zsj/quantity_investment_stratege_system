@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(wc -l /Users/lynn/Documents/claudecode/finance_invest/**/*.py)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+Collecting lightgbm
+  Downloading lightgbm-4.6.0-py3-none-macosx_12_0_arm64.whl.metadata (17 kB)
+Requirement already satisfied: numpy>=1.17.0 in /opt/homebrew/lib/python3.11/site-packages (from lightgbm) (1.26.3)
+Requirement already satisfied: scipy in /opt/homebrew/lib/python3.11/site-packages (from lightgbm) (1.10.1)
+Downloading lightgbm-4.6.0-py3-none-macosx_12_0_arm64.whl (1.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 831.0 kB/s eta 0:00:00
+Installing collected packages: lightgbm
+Successfully installed lightgbm-4.6.0
+
+[notice] A new release of pip is available: 25.1.1 -> 26.0.1
+[notice] To update, run: /opt/homebrew/opt/python@3.11/bin/python3.11 -m pip install --upgrade pip
