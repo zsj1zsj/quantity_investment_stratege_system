@@ -67,6 +67,10 @@ REQUIRE_TREND_UP = False   # Regime detection handles downside protection instea
 POSITION_HIGH_CONF = 1.0   # 100% position when prob > 0.8
 POSITION_MED_CONF = 0.8    # 80% position when prob > 0.5
 
+# Multi-asset portfolio
+MULTI_ASSET_MODE = True        # combine SP500+NASDAQ into one portfolio
+PER_ASSET_MAX_POSITION = 0.6   # max 60% of portfolio per asset
+
 # Gradual position building (Phase 2)
 GRADUAL_ENTRY = False       # disabled: full entry performs better with regime protection
 GRADUAL_INITIAL_SIZE = 0.5

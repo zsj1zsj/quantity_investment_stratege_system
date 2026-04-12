@@ -37,13 +37,25 @@ def cmd_backtest():
     """Run walk-forward backtest with transaction costs."""
     from model.train import prepare_data
     from backtest.engine import run_backtest, print_backtest_report
-    from config import SYMBOLS
+    from backtest.multi_asset import run_multi_asset_backtest
+    from config import SYMBOLS, MULTI_ASSET_MODE
 
+    # Per-asset backtests
+    prepared = {}
     for key in SYMBOLS:
         print(f"\nPreparing data for {key}...")
         df = prepare_data(key)
+        prepared[key] = df
         result = run_backtest(df, key)
         print_backtest_report(result)
+
+    # Multi-asset combined backtest
+    if MULTI_ASSET_MODE and len(prepared) > 1:
+        print(f"\n{'='*60}")
+        print(f"  Multi-Asset Portfolio Backtest")
+        print(f"{'='*60}")
+        multi_result = run_multi_asset_backtest(prepared)
+        print_backtest_report(multi_result)
 
 
 def cmd_validate_signal():

@@ -14,9 +14,9 @@ class Regime(Enum):
     STRESS = "stress"
 
 
-# VIX thresholds
-VIX_CAUTION = 20
-VIX_STRESS = 30
+# VIX thresholds (tightened in Phase 2.5 for better drawdown control)
+VIX_CAUTION = 18
+VIX_STRESS = 25
 
 # Position cap per regime
 REGIME_POSITION_CAP = {
