@@ -113,12 +113,19 @@ def cmd_stability():
     print("Collecting walk-forward signals...")
     asset_signals = _collect_all_signals(prepared)
 
+    from config import (
+        PROB_BUY_THRESHOLD, HOLD_PERIOD, POSITION_MED_CONF,
+        POSITION_HIGH_CONF, STOP_LOSS_PCT, PER_ASSET_MAX_POSITION,
+    )
+    from strategy.regime import VIX_CAUTION, VIX_STRESS
+
     # Run baseline backtest for rolling analysis
     dates, values = _run_multi_backtest(
         asset_signals,
-        buy_thresh=0.5, hold_days=25, pos_med=0.8, pos_high=1.0,
-        stop_loss=0.10, per_asset_max=0.6,
-        vix_caution=18, vix_stress=25,
+        buy_thresh=PROB_BUY_THRESHOLD, hold_days=HOLD_PERIOD,
+        pos_med=POSITION_MED_CONF, pos_high=POSITION_HIGH_CONF,
+        stop_loss=STOP_LOSS_PCT, per_asset_max=PER_ASSET_MAX_POSITION,
+        vix_caution=VIX_CAUTION, vix_stress=VIX_STRESS,
     )
 
     print_rolling_analysis(dates, values)

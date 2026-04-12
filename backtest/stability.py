@@ -74,8 +74,13 @@ def _collect_all_signals(prepared_dfs: dict[str, pd.DataFrame]) -> dict[str, dic
 
 
 def _run_multi_backtest(asset_signals, buy_thresh, hold_days, pos_med, pos_high,
-                        stop_loss, per_asset_max, vix_caution, vix_stress):
+                        stop_loss, per_asset_max, vix_caution, vix_stress,
+                        max_exposure=None):
     """Run multi-asset backtest, return daily portfolio values with dates."""
+    from config import MAX_TOTAL_EXPOSURE
+    if max_exposure is None:
+        max_exposure = MAX_TOTAL_EXPOSURE
+
     all_dates = sorted(set().union(*(s.keys() for s in asset_signals.values())))
     if not all_dates:
         return [], []
@@ -117,12 +122,18 @@ def _run_multi_backtest(asset_signals, buy_thresh, hold_days, pos_med, pos_high,
                 candidates.append((d["prob"], sym, d, regime))
 
         candidates.sort(reverse=True)
+        current_exp = sum(p["size"] for p in positions.values())
         for prob, sym, d, regime in candidates:
             raw_size = pos_high if prob > 0.8 else pos_med
             size = regime_cap(raw_size, regime)
             size = min(size, per_asset_max)
+            if current_exp + size > max_exposure:
+                size = max_exposure - current_exp
+                if size <= 0.05:
+                    continue
             entry_price = apply_buy_cost(d["close"])
             positions[sym] = {"entry_price": entry_price, "entry_idx": i, "size": size}
+            current_exp += size
 
         portfolio *= (1 + day_pnl)
         values.append(portfolio)
@@ -237,6 +248,9 @@ def print_rolling_analysis(dates, values):
 
 def parameter_sensitivity(asset_signals, base_params=None):
     """Test parameter sensitivity by perturbing one parameter at a time."""
+    from config import PER_ASSET_MAX_POSITION, MAX_TOTAL_EXPOSURE
+    from strategy.regime import VIX_CAUTION, VIX_STRESS
+
     if base_params is None:
         base_params = {
             "buy_thresh": PROB_BUY_THRESHOLD,
@@ -244,9 +258,9 @@ def parameter_sensitivity(asset_signals, base_params=None):
             "pos_med": POSITION_MED_CONF,
             "pos_high": POSITION_HIGH_CONF,
             "stop_loss": STOP_LOSS_PCT,
-            "per_asset_max": 0.6,
-            "vix_caution": 18,
-            "vix_stress": 25,
+            "per_asset_max": PER_ASSET_MAX_POSITION,
+            "vix_caution": VIX_CAUTION,
+            "vix_stress": VIX_STRESS,
         }
 
     # Perturbation grid

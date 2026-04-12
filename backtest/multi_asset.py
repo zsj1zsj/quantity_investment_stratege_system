@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from config import (
     LGBM_PARAMS, TRAIN_WINDOW, TEST_WINDOW, STEP_SIZE,
-    RISK_FREE_RATE, PER_ASSET_MAX_POSITION,
+    RISK_FREE_RATE, PER_ASSET_MAX_POSITION, MAX_TOTAL_EXPOSURE,
     PROB_BUY_THRESHOLD, STOP_LOSS_PCT, HOLD_PERIOD,
     POSITION_HIGH_CONF, POSITION_MED_CONF,
 )
@@ -85,7 +85,8 @@ def run_multi_asset_backtest(
     if not all_dates:
         return BacktestResult(symbol="MULTI")
 
-    result = BacktestResult(symbol="MULTI(SP500+NASDAQ)")
+    asset_names = "+".join(sorted(prepared_dfs.keys()))
+    result = BacktestResult(symbol=f"MULTI({asset_names})")
 
     portfolio = 1.0
     positions = {}  # symbol -> {entry_price, entry_idx, size, entry_date}
@@ -137,10 +138,16 @@ def run_multi_asset_backtest(
                 candidates.append((d["prob_up"], sym, d, regime))
 
         candidates.sort(reverse=True)  # highest probability first
+        current_exposure = sum(p["size"] for p in positions.values())
         for prob, sym, d, regime in candidates:
             raw_size = POSITION_HIGH_CONF if prob > 0.8 else POSITION_MED_CONF
             size = apply_regime_cap(raw_size, regime)
             size = min(size, PER_ASSET_MAX_POSITION)
+            # Cap total portfolio exposure
+            if current_exposure + size > MAX_TOTAL_EXPOSURE:
+                size = MAX_TOTAL_EXPOSURE - current_exposure
+                if size <= 0.05:
+                    continue  # skip if remaining capacity too small
             entry_price = apply_buy_cost(d["close"])
             positions[sym] = {
                 "entry_price": entry_price,
@@ -148,6 +155,7 @@ def run_multi_asset_backtest(
                 "size": size,
                 "entry_date": date_str,
             }
+            current_exposure += size
 
         portfolio *= (1 + day_pnl)
         result.portfolio_values.append(portfolio)
