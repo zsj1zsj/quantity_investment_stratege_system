@@ -2,7 +2,7 @@ import time
 import yfinance as yf
 import pandas as pd
 
-from config import SYMBOLS, CROSS_MARKET_SYMBOLS, DATA_START_DATE
+from config import SYMBOLS, CROSS_MARKET_SYMBOLS, ETF_SYMBOLS, DATA_START_DATE
 
 MAX_RETRIES = 5
 RETRY_DELAY = 10  # seconds
@@ -40,6 +40,13 @@ def fetch_all() -> dict[str, pd.DataFrame]:
 
     # Cross-market symbols
     for key, ticker in CROSS_MARKET_SYMBOLS.items():
+        print(f"Fetching {key} ({ticker})...")
+        result[key] = fetch_index_data(key, ticker)
+        print(f"  Got {len(result[key])} rows")
+        time.sleep(2)
+
+    # Sector ETFs
+    for key, ticker in ETF_SYMBOLS.items():
         print(f"Fetching {key} ({ticker})...")
         result[key] = fetch_index_data(key, ticker)
         print(f"  Got {len(result[key])} rows")

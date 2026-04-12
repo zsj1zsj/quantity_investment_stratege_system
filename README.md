@@ -36,7 +36,37 @@
 - 总交易: 162笔 (11.7笔/年), 胜率69.8%, 盈亏比2.10
 - 回测区间: 2012-02 ~ 2025-12 (约14年)
 
-### Phase 3：高级优化 — 未开始
+### 稳定性分析
+
+**逐年表现（2012-2025）：**
+
+| 年份 | AR | DD | SR | 状态 |
+|------|-----|------|------|------|
+| 2012 | 12.91% | 3.38% | 1.37 | OK |
+| 2013 | 20.21% | 0.14% | 1.97 | OK |
+| 2014 | 13.06% | 7.27% | 0.66 | OK |
+| 2015 | 7.25% | 9.48% | 0.33 | OK |
+| 2016 | 10.84% | 8.46% | 0.72 | OK |
+| 2017 | 9.62% | 0.02% | 1.29 | OK |
+| 2018 | -0.25% | 13.48% | -0.41 | WEAK |
+| 2019 | 2.76% | 3.92% | -0.20 | WEAK |
+| 2020 | 1.69% | 13.00% | -0.15 | WEAK |
+| 2021 | 20.01% | 1.26% | 2.35 | OK |
+| 2022 | -15.62% | 20.50% | -1.76 | WEAK |
+| 2023 | 17.54% | 4.51% | 1.43 | OK |
+| 2024 | 38.18% | 0.45% | 3.29 | OK |
+| 2025 | -0.01% | 15.87% | -0.34 | WEAK |
+
+- Rolling 1Y Sharpe: mean=0.78, std=1.33, 30.7%时间为负
+- 2022年是最大弱点（利率冲击），2018-2020年连续偏弱
+
+**参数敏感性：** VIX caution (15-22)、仓位上限 (55-70%)、止损 (10-15%) 均稳定通过 Gate 2。hold_days=25 和 vix_stress=25 为敏感参数。
+
+### Phase 3：组合扩展（ETF 多标的） — 进行中
+
+- 已配置 8 个 Sector ETF (XLK/XLF/XLE/XLV/XLI/XLC/XLY/XLP)
+- 系统已支持动态纳入可用 ETF 数据
+- 目标: 通过更多标的分散化进一步提升 Sharpe (0.5 → 0.8+)
 
 ---
 
@@ -58,7 +88,7 @@ pip install yfinance pandas numpy ta lightgbm scikit-learn joblib pyarrow
 ## 使用
 
 ```bash
-# 1. 下载数据（含 VIX、美债收益率）
+# 1. 下载数据（含 VIX、美债收益率、Sector ETFs）
 python main.py fetch
 
 # 2. 训练模型（LightGBM, 500/60 滑动窗口）
@@ -67,10 +97,13 @@ python main.py train
 # 3. 信号质量验证（分桶分析, Gate 1 前置检查）
 python main.py validate-signal
 
-# 4. 回测（含交易成本 0.2%/次, 固定20日持仓）
+# 4. 回测（单标的 + 多标的组合，含交易成本）
 python main.py backtest
 
-# 5. 生成预测报告（JSON + 可读格式）
+# 5. 稳定性分析（Rolling Sharpe/DD + 参数敏感性）
+python main.py stability
+
+# 6. 生成预测报告（JSON + 可读格式）
 python main.py predict
 ```
 
@@ -95,8 +128,10 @@ strategy/
   engine.py                    # 策略引擎（固定持仓期 + 仓位控制）
 backtest/
   cost_model.py                # 交易成本模型（0.05%佣金 + 0.05%滑点/每边）
-  engine.py                    # Walk-forward 回测引擎
+  engine.py                    # Walk-forward 回测引擎（单标的）
+  multi_asset.py               # 多标的组合回测引擎
   signal_validation.py         # 信号质量分桶验证
+  stability.py                 # Rolling 分析 + 参数敏感性测试
 output/
   report.py                    # JSON + 可读报告输出
 experiments/

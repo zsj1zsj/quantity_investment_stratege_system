@@ -5,11 +5,26 @@ PROJECT_DIR = Path(__file__).parent
 DATA_CACHE_DIR = PROJECT_DIR / "data" / "cache"
 MODEL_SAVE_DIR = PROJECT_DIR / "model" / "saved"
 
-# Symbols
+# Symbols — indices (original)
 SYMBOLS = {
     "SP500": "^GSPC",
     "NASDAQ": "^IXIC",
 }
+
+# Sector ETFs for multi-asset portfolio
+ETF_SYMBOLS = {
+    "XLK": "XLK",   # Technology
+    "XLF": "XLF",   # Financials
+    "XLE": "XLE",   # Energy
+    "XLV": "XLV",   # Healthcare
+    "XLI": "XLI",   # Industrials
+    "XLC": "XLC",   # Communication Services (started 2018-06)
+    "XLY": "XLY",   # Consumer Discretionary
+    "XLP": "XLP",   # Consumer Staples
+}
+
+# All tradeable symbols (indices + ETFs)
+ALL_SYMBOLS = {**SYMBOLS, **ETF_SYMBOLS}
 
 # Data
 DATA_START_DATE = "2010-01-01"
