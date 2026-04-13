@@ -85,6 +85,31 @@ def cmd_validate_signal():
         print_signal_validation(result)
 
 
+def cmd_sector_analysis():
+    """Run per-asset performance analysis across all available assets."""
+    from model.train import prepare_data
+    from backtest.sector_analysis import run_sector_analysis, print_sector_analysis
+    from config import SYMBOLS, ETF_SYMBOLS
+    from data.store import has_cache
+
+    print("Preparing data...")
+    prepared = {}
+    for key in SYMBOLS:
+        prepared[key] = prepare_data(key)
+    for key in ETF_SYMBOLS:
+        if has_cache(key):
+            try:
+                prepared[key] = prepare_data(key)
+                print(f"  Loaded {key}")
+            except Exception:
+                pass
+    print(f"  Total assets: {len(prepared)}")
+
+    print("\nRunning per-asset walk-forward backtests...")
+    results = run_sector_analysis(prepared)
+    print_sector_analysis(results)
+
+
 def cmd_stability():
     """Run rolling stability analysis and parameter sensitivity test."""
     from model.train import prepare_data
@@ -139,6 +164,7 @@ COMMANDS = {
     "evaluate": cmd_evaluate,
     "backtest": cmd_backtest,
     "validate-signal": cmd_validate_signal,
+    "sector-analysis": cmd_sector_analysis,
     "stability": cmd_stability,
 }
 
