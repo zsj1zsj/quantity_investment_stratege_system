@@ -110,6 +110,26 @@ def cmd_sector_analysis():
     print_sector_analysis(results)
 
 
+def cmd_predict_range():
+    """Generate historical predictions for a date range.
+
+    Usage: python main.py predict-range <start> <end>
+    Example: python main.py predict-range 2025-01-01 2025-03-31
+    """
+    if len(sys.argv) < 4:
+        print("Usage: python main.py predict-range <start_date> <end_date>")
+        print("Example: python main.py predict-range 2025-01-01 2025-03-31")
+        sys.exit(1)
+
+    start_date = sys.argv[2]
+    end_date = sys.argv[3]
+
+    from model.predict_range import predict_range, print_range_report
+    print(f"Generating predictions for {start_date} ~ {end_date}...")
+    rows = predict_range(start_date, end_date)
+    print_range_report(rows, start_date, end_date)
+
+
 def cmd_holdout():
     """Run hold-out validation: compare in-sample vs post-2024 performance."""
     from model.train import prepare_data
@@ -192,6 +212,7 @@ COMMANDS = {
     "backtest": cmd_backtest,
     "validate-signal": cmd_validate_signal,
     "sector-analysis": cmd_sector_analysis,
+    "predict-range": cmd_predict_range,
     "holdout": cmd_holdout,
     "stability": cmd_stability,
 }
@@ -199,8 +220,9 @@ COMMANDS = {
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
-        print("Usage: python main.py <command>")
+        print("Usage: python main.py <command> [args]")
         print(f"Commands: {', '.join(COMMANDS.keys())}")
+        print("  predict-range <start> <end>  e.g. predict-range 2025-01-01 2025-03-31")
         sys.exit(1)
 
     command = sys.argv[1]

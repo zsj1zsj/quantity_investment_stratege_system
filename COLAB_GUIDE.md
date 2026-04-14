@@ -179,6 +179,46 @@ os.chdir(REPO_DIR)
 
 ---
 
+### Cell 9 — 查询指定日期范围的历史预测信号
+
+回溯查看某段时期内，模型每天给出的信号是什么（walk-forward 样本外预测，每个信号只用该日期之前的数据生成）：
+
+```python
+os.chdir(REPO_DIR)
+!python main.py predict-range 2025-01-01 2025-03-31
+```
+
+**示例输出：**
+```
+  Historical Signals: 2025-01-01 ~ 2025-03-31
+  ========================================================================================
+
+  Date         Symbol         Close   Prob Signal     Suggest   Pos Regime     VIX
+  ----------------------------------------------------------------------------------
+  2025-01-02   NASDAQ      21221.01 32.6% low            HOLD     0% normal    15.9
+  2025-01-02   NASDAQ100   22100.23 34.5% low            HOLD     0% normal    15.9
+  2025-01-02   SP500        6016.55  1.3% low            HOLD     0% normal    15.9
+  2025-01-02   XLC           111.70 96.9% very_high  >>> BUY    100% normal    15.9
+  ...
+
+  Summary: 63 trading days, 8 BUY signals across 10 assets
+  BUY signals:
+    2025-01-02  XLC        prob=96.9%  pos=100%  regime=normal
+    ...
+```
+
+**使用场景：**
+
+| 场景 | 命令示例 |
+|------|----------|
+| 回顾上季度信号 | `predict-range 2025-01-01 2025-03-31` |
+| 验证某次市场波动期间的表现 | `predict-range 2025-03-01 2025-04-30` |
+| 查看最近一个月信号 | `predict-range 2026-03-01 2026-04-13` |
+
+> **注意：** 只能查询在 walk-forward 训练窗口覆盖范围内的日期（约从 2012 年开始）。日期格式必须为 `YYYY-MM-DD`。
+
+---
+
 ## 五、深度分析（按需运行）
 
 ### 查看完整回测
@@ -257,6 +297,14 @@ print("就绪 ✓")
 ```python
 # ===== Cell 4: 重新训练（每月一次，可选）=====
 !python main.py train
+```
+
+```python
+# ===== Cell 5: 查询历史信号（按需）=====
+# 修改日期范围查看任意历史时段的信号
+START = "2025-01-01"
+END   = "2025-03-31"
+!python main.py predict-range {START} {END}
 ```
 
 ---
