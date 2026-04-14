@@ -1,9 +1,9 @@
 """Market regime detection based on VIX levels.
 
 Regime states:
-  - NORMAL:  VIX < 20  — full position allowed
-  - CAUTION: 20 <= VIX < 30 — position cap at 50%
-  - STRESS:  VIX >= 30 — no new entries, only stop-loss exits
+  - NORMAL:  VIX < 18  — full position allowed
+  - CAUTION: 18 <= VIX < 25 — position cap at 50%
+  - STRESS:  VIX >= 25 — no new entries, only stop-loss exits
 """
 from enum import Enum
 
@@ -27,10 +27,15 @@ REGIME_POSITION_CAP = {
 
 
 def detect_regime(vix: float) -> Regime:
-    """Classify market regime based on VIX value."""
-    if vix >= VIX_STRESS:
+    """Classify market regime based on VIX value using default thresholds."""
+    return detect_regime_custom(vix, VIX_CAUTION, VIX_STRESS)
+
+
+def detect_regime_custom(vix: float, caution: float, stress: float) -> Regime:
+    """Classify market regime with explicit thresholds (used by sensitivity tests)."""
+    if vix >= stress:
         return Regime.STRESS
-    if vix >= VIX_CAUTION:
+    if vix >= caution:
         return Regime.CAUTION
     return Regime.NORMAL
 

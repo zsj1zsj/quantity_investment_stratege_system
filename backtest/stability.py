@@ -9,68 +9,16 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
 
 from config import (
-    LGBM_PARAMS, TRAIN_WINDOW, TEST_WINDOW, STEP_SIZE,
     RISK_FREE_RATE, PROB_BUY_THRESHOLD, STOP_LOSS_PCT,
     HOLD_PERIOD, POSITION_HIGH_CONF, POSITION_MED_CONF,
 )
-from model.train import _get_feature_cols
 from backtest.cost_model import apply_buy_cost, apply_sell_cost
-from strategy.regime import Regime
+from backtest.signals import collect_all_signals as _collect_all_signals
+from strategy.regime import Regime, detect_regime_custom, apply_regime_cap
 
 
-def detect_regime_custom(vix, caution=18, stress=25):
-    if vix >= stress:
-        return Regime.STRESS
-    if vix >= caution:
-        return Regime.CAUTION
-    return Regime.NORMAL
-
-
-def regime_cap(size, regime):
-    caps = {Regime.NORMAL: 1.0, Regime.CAUTION: 0.5, Regime.STRESS: 0.0}
-    return min(size, caps[regime])
-
-
-def _collect_all_signals(prepared_dfs: dict[str, pd.DataFrame]) -> dict[str, dict]:
-    """Walk-forward signal collection for all assets."""
-    feature_cols = _get_feature_cols()
-    asset_signals = {}
-
-    for symbol, df in prepared_dfs.items():
-        n = len(df)
-        all_data = []
-        start = 0
-        while start + TRAIN_WINDOW + TEST_WINDOW <= n:
-            train_end = start + TRAIN_WINDOW
-            test_end = min(train_end + TEST_WINDOW, n)
-            train_df = df.iloc[start:train_end]
-            test_df = df.iloc[train_end:test_end]
-            model = LGBMClassifier(**LGBM_PARAMS)
-            model.fit(train_df[feature_cols], train_df["label"])
-            probs = model.predict_proba(test_df[feature_cols])[:, 1]
-            for idx, row_idx in enumerate(test_df.index):
-                row = test_df.loc[row_idx]
-                all_data.append({
-                    "date": row_idx, "close": row["close"],
-                    "prob": probs[idx], "vix": row.get("vix", 0),
-                    "symbol": symbol,
-                })
-            start += STEP_SIZE
-
-        seen = set()
-        unique = []
-        for d in all_data:
-            k = str(d["date"])
-            if k not in seen:
-                seen.add(k)
-                unique.append(d)
-        unique.sort(key=lambda x: x["date"])
-        asset_signals[symbol] = {str(d["date"]): d for d in unique}
-
-    return asset_signals
 
 
 def _run_multi_backtest(asset_signals, buy_thresh, hold_days, pos_med, pos_high,
@@ -125,7 +73,7 @@ def _run_multi_backtest(asset_signals, buy_thresh, hold_days, pos_med, pos_high,
         current_exp = sum(p["size"] for p in positions.values())
         for prob, sym, d, regime in candidates:
             raw_size = pos_high if prob > 0.8 else pos_med
-            size = regime_cap(raw_size, regime)
+            size = apply_regime_cap(raw_size, regime)
             size = min(size, per_asset_max)
             if current_exp + size > max_exposure:
                 size = max_exposure - current_exp

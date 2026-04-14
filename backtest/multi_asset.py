@@ -8,59 +8,17 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
 from dataclasses import dataclass, field
 
 from config import (
-    LGBM_PARAMS, TRAIN_WINDOW, TEST_WINDOW, STEP_SIZE,
     RISK_FREE_RATE, PER_ASSET_MAX_POSITION, MAX_TOTAL_EXPOSURE,
     PROB_BUY_THRESHOLD, STOP_LOSS_PCT, HOLD_PERIOD,
-    POSITION_HIGH_CONF, POSITION_MED_CONF,
+    POSITION_HIGH_CONF, POSITION_MED_CONF, COST_ROUND_TRIP,
 )
-from model.train import _get_feature_cols
 from backtest.cost_model import apply_buy_cost, apply_sell_cost
 from backtest.engine import Trade, BacktestResult
+from backtest.signals import collect_asset_signals
 from strategy.regime import detect_regime, apply_regime_cap, Regime
-
-
-def _collect_signals(df: pd.DataFrame, symbol: str) -> dict[str, dict]:
-    """Walk-forward to collect out-of-sample predictions for one asset."""
-    feature_cols = _get_feature_cols()
-    n = len(df)
-    all_data = []
-    start = 0
-
-    while start + TRAIN_WINDOW + TEST_WINDOW <= n:
-        train_end = start + TRAIN_WINDOW
-        test_end = min(train_end + TEST_WINDOW, n)
-        train_df = df.iloc[start:train_end]
-        test_df = df.iloc[train_end:test_end]
-
-        model = LGBMClassifier(**LGBM_PARAMS)
-        model.fit(train_df[feature_cols], train_df["label"])
-        probs = model.predict_proba(test_df[feature_cols])[:, 1]
-
-        for idx, row_idx in enumerate(test_df.index):
-            row = test_df.loc[row_idx]
-            all_data.append({
-                "date": row_idx,
-                "close": row["close"],
-                "prob_up": probs[idx],
-                "vix": row.get("vix", 0),
-                "symbol": symbol,
-            })
-        start += STEP_SIZE
-
-    # Deduplicate
-    seen = set()
-    unique = []
-    for d in all_data:
-        k = str(d["date"])
-        if k not in seen:
-            seen.add(k)
-            unique.append(d)
-    unique.sort(key=lambda x: x["date"])
-    return {str(d["date"]): d for d in unique}
 
 
 def run_multi_asset_backtest(
@@ -76,9 +34,10 @@ def run_multi_asset_backtest(
         BacktestResult with combined portfolio metrics
     """
     # Collect signals for each asset
-    asset_signals = {}
-    for symbol, df in prepared_dfs.items():
-        asset_signals[symbol] = _collect_signals(df, symbol)
+    asset_signals = {
+        symbol: collect_asset_signals(df, symbol)
+        for symbol, df in prepared_dfs.items()
+    }
 
     # Union of all dates
     all_dates = sorted(set().union(*(s.keys() for s in asset_signals.values())))
@@ -114,7 +73,7 @@ def run_multi_asset_backtest(
                     entry_price=pos["entry_price"],
                     exit_price=exit_price,
                     position_size=pos["size"],
-                    gross_return=net_ret + 0.002,
+                    gross_return=net_ret + COST_ROUND_TRIP,
                     net_return=net_ret,
                     holding_days=days_held,
                 )
@@ -134,8 +93,8 @@ def run_multi_asset_backtest(
             regime = detect_regime(d["vix"]) if d["vix"] > 0 else Regime.NORMAL
             if regime == Regime.STRESS:
                 continue
-            if d["prob_up"] > PROB_BUY_THRESHOLD:
-                candidates.append((d["prob_up"], sym, d, regime))
+            if d["prob"] > PROB_BUY_THRESHOLD:
+                candidates.append((d["prob"], sym, d, regime))
 
         candidates.sort(reverse=True)  # highest probability first
         current_exposure = sum(p["size"] for p in positions.values())
@@ -185,7 +144,7 @@ def run_multi_asset_backtest(
                 entry_price=pos["entry_price"],
                 exit_price=exit_price,
                 position_size=pos["size"],
-                gross_return=net_ret + 0.002,
+                gross_return=net_ret + COST_ROUND_TRIP,
                 net_return=net_ret,
                 holding_days=days_held,
             )

@@ -8,53 +8,14 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
 
 from config import (
-    LGBM_PARAMS, TRAIN_WINDOW, TEST_WINDOW, STEP_SIZE,
     RISK_FREE_RATE, PROB_BUY_THRESHOLD, STOP_LOSS_PCT,
     HOLD_PERIOD, POSITION_HIGH_CONF, POSITION_MED_CONF,
 )
-from model.train import _get_feature_cols
 from backtest.cost_model import apply_buy_cost, apply_sell_cost
+from backtest.signals import collect_asset_signals
 from strategy.regime import detect_regime, apply_regime_cap, Regime
-
-
-def _collect_asset_signals(df: pd.DataFrame) -> list[dict]:
-    """Walk-forward signal collection for a single asset."""
-    feature_cols = _get_feature_cols()
-    n = len(df)
-    all_data = []
-    start = 0
-
-    while start + TRAIN_WINDOW + TEST_WINDOW <= n:
-        train_end = start + TRAIN_WINDOW
-        test_end = min(train_end + TEST_WINDOW, n)
-        train_df = df.iloc[start:train_end]
-        test_df = df.iloc[train_end:test_end]
-
-        model = LGBMClassifier(**LGBM_PARAMS)
-        model.fit(train_df[feature_cols], train_df["label"])
-        probs = model.predict_proba(test_df[feature_cols])[:, 1]
-
-        for idx, row_idx in enumerate(test_df.index):
-            row = test_df.loc[row_idx]
-            all_data.append({
-                "date": row_idx, "close": row["close"],
-                "prob": probs[idx], "vix": row.get("vix", 0),
-            })
-        start += STEP_SIZE
-
-    # Deduplicate
-    seen = set()
-    unique = []
-    for d in all_data:
-        k = str(d["date"])
-        if k not in seen:
-            seen.add(k)
-            unique.append(d)
-    unique.sort(key=lambda x: x["date"])
-    return unique
 
 
 def _run_single_asset_backtest(signals: list[dict]) -> dict:
@@ -133,7 +94,8 @@ def run_sector_analysis(prepared_dfs: dict[str, pd.DataFrame]) -> list[dict]:
     results = []
     for symbol, df in prepared_dfs.items():
         print(f"  Analyzing {symbol}...")
-        signals = _collect_asset_signals(df)
+        signals_dict = collect_asset_signals(df, symbol)
+        signals = sorted(signals_dict.values(), key=lambda x: x["date"])
         metrics = _run_single_asset_backtest(signals)
         if metrics is not None:
             metrics["symbol"] = symbol
