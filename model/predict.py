@@ -37,7 +37,21 @@ def predict_symbol(symbol_key: str) -> dict:
     latest = df.iloc[[-1]]
     X = latest[feature_cols]
 
-    prob_up = float(model.predict_proba(X)[0][1])
+    raw_prob = float(model.predict_proba(X)[0][1])
+
+    # Apply signal smoothing if recent history is available
+    from config import USE_SIGNAL_SMOOTHING
+    from signal_layer.calibration import smooth_signal
+    if USE_SIGNAL_SMOOTHING:
+        recent = df.tail(10)
+        hist_probs = pd.Series(
+            model.predict_proba(recent[feature_cols])[:, 1],
+            index=recent.index,
+        )
+        smoothed = smooth_signal(hist_probs)
+        prob_up = float(smoothed.iloc[-1])
+    else:
+        prob_up = raw_prob
 
     row = latest.iloc[0]
 
