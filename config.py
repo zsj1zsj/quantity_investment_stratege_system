@@ -103,3 +103,10 @@ DEGRADATION_MIN_WINRATE = 0.55  # min winrate for prob>0.7 signals
 
 # Risk-free rate for Sharpe calculation
 RISK_FREE_RATE = 0.04      # 4% annual
+
+# Hold-out validation (strategy params were optimized on pre-2024 data)
+HOLDOUT_START_DATE = "2024-01-01"
+
+# Signal calibration
+CALIBRATION_WINDOW = 60    # trading days reserved for Platt Scaling within training window
+USE_SIGNAL_SMOOTHING = True  # EWM smoothing (span=3) to reduce day-to-day noise

@@ -110,6 +110,33 @@ def cmd_sector_analysis():
     print_sector_analysis(results)
 
 
+def cmd_holdout():
+    """Run hold-out validation: compare in-sample vs post-2024 performance."""
+    from model.train import prepare_data
+    from backtest.signals import collect_all_signals
+    from backtest.stability import holdout_analysis, print_holdout_analysis
+    from config import SYMBOLS, ETF_SYMBOLS
+    from data.store import has_cache
+
+    print("Preparing data...")
+    prepared = {}
+    for key in SYMBOLS:
+        prepared[key] = prepare_data(key)
+    for key in ETF_SYMBOLS:
+        if has_cache(key):
+            try:
+                prepared[key] = prepare_data(key)
+            except Exception:
+                pass
+    print(f"  Total assets: {len(prepared)}")
+
+    print("Collecting walk-forward signals...")
+    asset_signals = collect_all_signals(prepared)
+
+    result = holdout_analysis(asset_signals)
+    print_holdout_analysis(result)
+
+
 def cmd_stability():
     """Run rolling stability analysis and parameter sensitivity test."""
     from model.train import prepare_data
@@ -165,6 +192,7 @@ COMMANDS = {
     "backtest": cmd_backtest,
     "validate-signal": cmd_validate_signal,
     "sector-analysis": cmd_sector_analysis,
+    "holdout": cmd_holdout,
     "stability": cmd_stability,
 }
 

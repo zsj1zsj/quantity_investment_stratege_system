@@ -191,7 +191,100 @@ def print_rolling_analysis(dates, values):
 
 
 # =========================================================
-# 2. Parameter Sensitivity
+# 2. Hold-out Validation
+# =========================================================
+
+def holdout_analysis(asset_signals, holdout_start=None):
+    """Compare in-sample vs hold-out performance to assess parameter overfitting.
+
+    In-sample: all signals before holdout_start (params were optimized on this)
+    Hold-out:  all signals from holdout_start onwards (never seen during param search)
+    """
+    from config import (
+        PROB_BUY_THRESHOLD, HOLD_PERIOD, POSITION_MED_CONF,
+        POSITION_HIGH_CONF, STOP_LOSS_PCT, PER_ASSET_MAX_POSITION,
+        HOLDOUT_START_DATE,
+    )
+    from strategy.regime import VIX_CAUTION, VIX_STRESS
+
+    if holdout_start is None:
+        holdout_start = HOLDOUT_START_DATE
+
+    kwargs = dict(
+        buy_thresh=PROB_BUY_THRESHOLD, hold_days=HOLD_PERIOD,
+        pos_med=POSITION_MED_CONF, pos_high=POSITION_HIGH_CONF,
+        stop_loss=STOP_LOSS_PCT, per_asset_max=PER_ASSET_MAX_POSITION,
+        vix_caution=VIX_CAUTION, vix_stress=VIX_STRESS,
+    )
+
+    # Split signals at holdout boundary
+    in_sample = {
+        sym: {d: s for d, s in sigs.items() if d < holdout_start}
+        for sym, sigs in asset_signals.items()
+    }
+    in_sample = {k: v for k, v in in_sample.items() if v}
+
+    holdout = {
+        sym: {d: s for d, s in sigs.items() if d >= holdout_start}
+        for sym, sigs in asset_signals.items()
+    }
+    holdout = {k: v for k, v in holdout.items() if v}
+
+    dates_in, values_in = _run_multi_backtest(in_sample, **kwargs)
+    dates_ho, values_ho = _run_multi_backtest(holdout, **kwargs)
+
+    m_in = compute_metrics(values_in) if values_in else {"ar": 0, "dd": 0, "sr": 0, "vol": 0}
+    m_ho = compute_metrics(values_ho) if values_ho else {"ar": 0, "dd": 0, "sr": 0, "vol": 0}
+
+    return {
+        "in_sample": m_in, "holdout": m_ho,
+        "in_sample_period": f"{dates_in[0][:10]} ~ {dates_in[-1][:10]}" if dates_in else "N/A",
+        "holdout_period": f"{dates_ho[0][:10]} ~ {dates_ho[-1][:10]}" if dates_ho else "N/A",
+    }
+
+
+def print_holdout_analysis(result):
+    """Print in-sample vs hold-out comparison."""
+    print(f"\n  {'='*70}")
+    print(f"  Hold-out Validation (Overfitting Check)")
+    print(f"  {'='*70}")
+
+    m_in = result["in_sample"]
+    m_ho = result["holdout"]
+
+    print(f"\n  {'Metric':<18s} | {'In-Sample':>12s} | {'Hold-out':>12s} | {'Delta':>10s}")
+    print(f"  {'-'*58}")
+
+    metrics = [
+        ("Period", result["in_sample_period"], result["holdout_period"], ""),
+        ("Ann. Return", f"{m_in['ar']:.2%}", f"{m_ho['ar']:.2%}",
+         f"{m_ho['ar'] - m_in['ar']:+.2%}"),
+        ("Max Drawdown", f"{m_in['dd']:.2%}", f"{m_ho['dd']:.2%}",
+         f"{m_ho['dd'] - m_in['dd']:+.2%}"),
+        ("Sharpe Ratio", f"{m_in['sr']:.2f}", f"{m_ho['sr']:.2f}",
+         f"{m_ho['sr'] - m_in['sr']:+.2f}"),
+        ("Volatility", f"{m_in['vol']:.2%}", f"{m_ho['vol']:.2%}",
+         f"{m_ho['vol'] - m_in['vol']:+.2%}"),
+    ]
+    for row in metrics:
+        print(f"  {row[0]:<18s} | {row[1]:>12s} | {row[2]:>12s} | {row[3]:>10s}")
+
+    print(f"\n  Verdict:")
+    sr_drop = m_in["sr"] - m_ho["sr"]
+    dd_rise = m_ho["dd"] - m_in["dd"]
+    if sr_drop > 0.5 or dd_rise > 0.10:
+        print(f"  ⚠ OVERFIT RISK — SR dropped {sr_drop:.2f}, DD rose {dd_rise:.2%}")
+        print(f"    Strategy parameters likely over-optimized on in-sample period.")
+    elif sr_drop > 0.2 or dd_rise > 0.05:
+        print(f"  ~ MODERATE DEGRADATION — SR drop={sr_drop:.2f}, DD rise={dd_rise:.2%}")
+        print(f"    Some degradation expected; monitor live performance closely.")
+    else:
+        print(f"  ✓ ROBUST — SR drop={sr_drop:.2f}, DD rise={dd_rise:.2%}")
+        print(f"    Hold-out performance consistent with in-sample.")
+
+
+# =========================================================
+# 3. Parameter Sensitivity
 # =========================================================
 
 def parameter_sensitivity(asset_signals, base_params=None):
