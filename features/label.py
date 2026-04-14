@@ -4,7 +4,7 @@ from config import FORWARD_DAYS, LABEL_THRESHOLD
 
 
 def add_label(df: pd.DataFrame) -> pd.DataFrame:
-    """Add binary label: 1 if 5-day forward return > LABEL_THRESHOLD (1%), else 0.
+    """Add binary label: 1 if 20-day forward return > LABEL_THRESHOLD (3%), else 0.
 
     Uses T+1 to T+N data strictly (shift by -FORWARD_DAYS on close).
     Rows without valid future data get NaN label.

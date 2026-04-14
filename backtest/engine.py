@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from config import (
     LGBM_PARAMS, TRAIN_WINDOW, TEST_WINDOW, STEP_SIZE,
     RISK_FREE_RATE, GRADUAL_ENTRY, GRADUAL_INITIAL_SIZE,
-    GRADUAL_ADD_DAY, GRADUAL_ADD_THRESHOLD,
+    GRADUAL_ADD_DAY, GRADUAL_ADD_THRESHOLD, COST_ROUND_TRIP,
 )
 from model.train import _get_feature_cols
 from strategy.spec import MarketContext
@@ -238,7 +238,6 @@ def run_backtest(df: pd.DataFrame, symbol: str) -> BacktestResult:
 
         elif decision.action == Action.SELL and in_position:
             exit_price = apply_sell_cost(close)
-            gross_ret = close / data["close"] - 1  # placeholder
             net_ret = (exit_price / entry_price) - 1
             trade = Trade(
                 entry_date=entry_date,
@@ -246,7 +245,7 @@ def run_backtest(df: pd.DataFrame, symbol: str) -> BacktestResult:
                 entry_price=entry_price,
                 exit_price=exit_price,
                 position_size=position_size,
-                gross_return=net_ret + 0.002,  # approximate gross
+                gross_return=net_ret + COST_ROUND_TRIP,  # net + round-trip cost
                 net_return=net_ret,
                 holding_days=holding_days,
             )
@@ -273,7 +272,7 @@ def run_backtest(df: pd.DataFrame, symbol: str) -> BacktestResult:
             entry_price=entry_price,
             exit_price=exit_price,
             position_size=position_size,
-            gross_return=net_ret + 0.002,
+            gross_return=net_ret + COST_ROUND_TRIP,
             net_return=net_ret,
             holding_days=holding_days,
         )
