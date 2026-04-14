@@ -9,6 +9,7 @@ MODEL_SAVE_DIR = PROJECT_DIR / "model" / "saved"
 SYMBOLS = {
     "SP500": "^GSPC",
     "NASDAQ": "^IXIC",
+    "NASDAQ100": "^NDX",   # NASDAQ 100 (large-cap tech focus)
 }
 
 # Sector ETFs for multi-asset portfolio

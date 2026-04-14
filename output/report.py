@@ -5,6 +5,7 @@ from datetime import date
 SYMBOL_NAMES = {
     "SP500": "S&P 500",
     "NASDAQ": "NASDAQ Composite",
+    "NASDAQ100": "NASDAQ 100",
 }
 
 
